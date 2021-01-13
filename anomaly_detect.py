@@ -37,7 +37,7 @@ def create_dataset(inp, outp, time_steps=1):
     return np.array(Xs), np.array(ys)
 
 
-df = pd.read_csv('data\\ambient_temperature_system_failure.csv', parse_dates=['timestamp'])
+df = pd.read_csv('data\\ambient_temperature_system.csv', parse_dates=['timestamp'])
 print("The first 5 entries of the sensor data: {}".format(df.head()))
 print("The shape of the dataframe: {}".format(df.shape))
 
@@ -110,15 +110,18 @@ model.compile(loss='mae', optimizer='adam')
 model.summary()
 
 es = tf.keras.callbacks.EarlyStopping(monitor='val_loss', patience=3, mode='min')
+mc = tf.keras.callbacks.ModelCheckpoint('best_model.h5', monitor='val_loss', mode='min', save_best_only=True)
 history = model.fit(
     X_train, y_train,
     epochs=100,
     batch_size=32,
     validation_split=0.1,
-    callbacks = [es],
+    callbacks = [es, mc],
     shuffle=False
 )
 
+#Load the best model observed as saved_model
+saved_model = tf.keras.models.load_model('best_model.h5')
 
 ''' Plot training and validation loss data over time '''
 plt.figure()
@@ -132,9 +135,9 @@ plt.legend(['train', 'val'], loc='upper left')
 plt.savefig(output_path)
 plt.close()
 
-X_train_pred = model.predict(X_train)
+X_train_pred = saved_model.predict(X_train)
 train_mae_loss = np.mean(np.abs(X_train_pred - X_train), axis=1)
-model.evaluate(X_test, y_test)
+saved_model.evaluate(X_test, y_test)
 
 ''' Plot histogram of mean absolute error of training data '''
 plt.figure()
@@ -144,7 +147,7 @@ output_path = output_files_path + "/train_mae_loss.png"
 plt.savefig(output_path)
 plt.close()
 
-X_test_pred = model.predict(X_test)
+X_test_pred = saved_model.predict(X_test)
 test_mae_loss = np.mean(np.abs(X_test_pred - X_test), axis=1)
 
 ''' Plot histogram of mean absolute error of test data '''
